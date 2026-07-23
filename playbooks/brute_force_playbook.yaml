@@ -1,0 +1,25 @@
+name: "Automated Brute-Force Incident Response Playbook"
+description: "Triggers when Heimdall detects an SSH brute-force attack. Isolates IP, runs triage, checks threat intel, and alerts SOC."
+
+trigger: "SSH_BRUTE_FORCE"
+
+steps:
+  - name: "Isolate Attacker IP on Firewall"
+    action: "heimdall_block_ip"
+    params:
+      ip: "{{event.source_ip}}"
+
+  - name: "Run Host Forensic Triage"
+    action: "mjolnir_run_triage"
+    params:
+      host: "{{event.hostname}}"
+
+  - name: "Verify Threat Intel on Attacker IP"
+    action: "fenrir_check_ioc"
+    params:
+      indicator: "{{event.source_ip}}"
+
+  - name: "Notify SOC via Telegram"
+    action: "telegram_notify"
+    params:
+      message: "SOAR Automated Response: Brute-force neutralized. IP blocked and forensic triage completed."
