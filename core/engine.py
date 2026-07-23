@@ -59,27 +59,27 @@ class SOAREngine:
         try:
             if action == "heimdall_simulate":
                 path = os.path.join(self.asgard_root, "Heimdall")
-                res = subprocess.run([sys.executable, "run_local_demo.py"], cwd=path, capture_output=True, text=True, timeout=15)
+                res = subprocess.run([sys.executable, "run_local_demo.py"], cwd=path, capture_output=True, text=True, encoding="utf-8", timeout=15)
                 return res.returncode == 0, res.stdout or res.stderr
 
             elif action == "mjolnir_run_triage":
                 path = os.path.join(self.asgard_root, "Mjolnir")
-                res = subprocess.run([sys.executable, "main.py", "triage", "--simulate"], cwd=path, capture_output=True, text=True, timeout=15)
+                res = subprocess.run([sys.executable, "main.py", "triage", "--simulate"], cwd=path, capture_output=True, text=True, encoding="utf-8", timeout=15)
                 return res.returncode == 0, res.stdout or res.stderr
 
             elif action == "bifrost_scan":
                 path = os.path.join(self.asgard_root, "Bifrost")
-                res = subprocess.run([sys.executable, "main.py", "scan", "127.0.0.1", "--enrich"], cwd=path, capture_output=True, text=True, timeout=15)
+                res = subprocess.run([sys.executable, "main.py", "scan", "127.0.0.1", "--enrich"], cwd=path, capture_output=True, text=True, encoding="utf-8", timeout=15)
                 return res.returncode == 0, res.stdout or res.stderr
 
             elif action == "yggdrasil_audit":
                 path = os.path.join(self.asgard_root, "Yggdrasil")
-                res = subprocess.run([sys.executable, "main.py", "audit"], cwd=path, capture_output=True, text=True, timeout=15)
+                res = subprocess.run([sys.executable, "main.py", "audit"], cwd=path, capture_output=True, text=True, encoding="utf-8", timeout=15)
                 return res.returncode == 0, res.stdout or res.stderr
 
             elif action == "fenrir_update":
                 path = os.path.join(self.asgard_root, "Fenrir")
-                res = subprocess.run([sys.executable, "main.py", "update"], cwd=path, capture_output=True, text=True, timeout=15)
+                res = subprocess.run([sys.executable, "main.py", "update"], cwd=path, capture_output=True, text=True, encoding="utf-8", timeout=15)
                 return res.returncode == 0, res.stdout or res.stderr
 
             elif action == "wait":
