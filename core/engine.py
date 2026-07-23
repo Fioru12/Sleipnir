@@ -1,17 +1,21 @@
 import yaml
 import time
+import os
+import sys
+import subprocess
 from typing import Dict, Any, List
 from core.bus import EventBus, IncidentState
 from core.colors import Colors
 
 class SOAREngine:
     """
-    Parses and executes YAML SOAR playbooks, orchestrating
-    security tools and automated responses.
+    Real-world SOAR engine that parses YAML playbooks and executes
+    actual Asgard suite modules via subprocess orchestration.
     """
 
-    def __init__(self, playbook_path: str):
+    def __init__(self, playbook_path: str, asgard_root: str = "C:\\Progetti\\Asgard"):
         self.playbook_path = playbook_path
+        self.asgard_root = asgard_root
         self.playbook = self._load_playbook()
 
     def _load_playbook(self) -> Dict[str, Any]:
@@ -34,16 +38,15 @@ class SOAREngine:
             action = step.get("action")
             params = step.get("params", {})
 
-            print(f"  {Colors.CYAN}[Step {i}]{Colors.ENDC} {step_name}...")
-            time.sleep(0.5) # Simulated execution delay for realism
+            print(f"  {Colors.CYAN}[Step {i}]{Colors.ENDC} {step_name} ({action})...")
 
-            success, details = self._dispatch_action(action, params, bus)
+            success, details = self._dispatch_real_action(action, params, bus)
 
             if success:
-                print(f"    {Colors.GREEN}[SUCCESS]{Colors.ENDC} {action} completed.")
+                print(f"    {Colors.GREEN}[SUCCESS]{Colors.ENDC} Action executed successfully.")
                 bus.log_action(action, "SUCCESS", details)
             else:
-                print(f"    {Colors.RED}[FAILED]{Colors.ENDC} {action} failed: {details}")
+                print(f"    {Colors.RED}[FAILED]{Colors.ENDC} Action failed: {details}")
                 bus.log_action(action, "FAILED", details)
                 bus.transition(IncidentState.FAILED, f"Playbook failed at step: {step_name}")
                 return bus.get_summary()
@@ -52,27 +55,39 @@ class SOAREngine:
         print(f"\n{Colors.GREEN}[SOAR COMPLETE]{Colors.ENDC} Incident {incident_id} successfully contained.")
         return bus.get_summary()
 
-    def _dispatch_action(self, action: str, params: Dict[str, Any], bus: EventBus) -> tuple:
-        # Simulated connector actions for Asgard integration
-        if action == "heimdall_block_ip":
-            ip = params.get("ip", "127.0.0.1")
-            return True, f"Firewall rule applied. Blocked IP {ip} via UFW/Netsh."
+    def _dispatch_real_action(self, action: str, params: Dict[str, Any], bus: EventBus) -> tuple:
+        try:
+            if action == "heimdall_simulate":
+                path = os.path.join(self.asgard_root, "Heimdall")
+                res = subprocess.run([sys.executable, "run_local_demo.py"], cwd=path, capture_output=True, text=True, timeout=15)
+                return res.returncode == 0, res.stdout or res.stderr
 
-        elif action == "mjolnir_run_triage":
-            return True, "Host triage executed. Captured 142 processes and 23 network sockets."
+            elif action == "mjolnir_run_triage":
+                path = os.path.join(self.asgard_root, "Mjolnir")
+                res = subprocess.run([sys.executable, "main.py", "triage", "--simulate"], cwd=path, capture_output=True, text=True, timeout=15)
+                return res.returncode == 0, res.stdout or res.stderr
 
-        elif action == "fenrir_check_ioc":
-            indicator = params.get("indicator", "unknown")
-            return True, f"IOC {indicator} checked against CTI database. Match found: High Risk."
+            elif action == "bifrost_scan":
+                path = os.path.join(self.asgard_root, "Bifrost")
+                res = subprocess.run([sys.executable, "main.py", "scan", "127.0.0.1", "--enrich"], cwd=path, capture_output=True, text=True, timeout=15)
+                return res.returncode == 0, res.stdout or res.stderr
 
-        elif action == "telegram_notify":
-            msg = params.get("message", "Security Alert")
-            return True, f"Notification dispatched to Telegram channel: '{msg}'"
+            elif action == "yggdrasil_audit":
+                path = os.path.join(self.asgard_root, "Yggdrasil")
+                res = subprocess.run([sys.executable, "main.py", "audit"], cwd=path, capture_output=True, text=True, timeout=15)
+                return res.returncode == 0, res.stdout or res.stderr
 
-        elif action == "wait":
-            seconds = params.get("seconds", 1)
-            time.sleep(seconds)
-            return True, f"Waited {seconds} seconds."
+            elif action == "fenrir_update":
+                path = os.path.join(self.asgard_root, "Fenrir")
+                res = subprocess.run([sys.executable, "main.py", "update"], cwd=path, capture_output=True, text=True, timeout=15)
+                return res.returncode == 0, res.stdout or res.stderr
 
-        else:
-            return False, f"Unknown action: {action}"
+            elif action == "wait":
+                seconds = params.get("seconds", 1)
+                time.sleep(seconds)
+                return True, f"Waited {seconds} seconds."
+
+            else:
+                return False, f"Unknown action: {action}"
+        except Exception as e:
+            return False, str(e)

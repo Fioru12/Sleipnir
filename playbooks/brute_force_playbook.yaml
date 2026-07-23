@@ -1,25 +1,25 @@
-name: "Automated Brute-Force Incident Response Playbook"
-description: "Triggers when Heimdall detects an SSH brute-force attack. Isolates IP, runs triage, checks threat intel, and alerts SOC."
+name: "Asgard Suite Automated SOC Playbook"
+description: "Orchestrates Fenrir (Threat Intel), Heimdall (HIDS), Mjolnir (Triage), Bifrost (Network Scan), and Yggdrasil (AD Audit) into a unified incident response workflow."
 
-trigger: "SSH_BRUTE_FORCE"
+trigger: "SECURITY_INCIDENT"
 
 steps:
-  - name: "Isolate Attacker IP on Firewall"
-    action: "heimdall_block_ip"
-    params:
-      ip: "{{event.source_ip}}"
+  - name: "Step 1: Update Threat Intel (Fenrir)"
+    action: "fenrir_update"
+    params: {}
 
-  - name: "Run Host Forensic Triage"
+  - name: "Step 2: Run HIDS Log Analysis & Simulation (Heimdall)"
+    action: "heimdall_simulate"
+    params: {}
+
+  - name: "Step 3: Execute Live Host Forensic Triage (Mjolnir)"
     action: "mjolnir_run_triage"
-    params:
-      host: "{{event.hostname}}"
+    params: {}
 
-  - name: "Verify Threat Intel on Attacker IP"
-    action: "fenrir_check_ioc"
-    params:
-      indicator: "{{event.source_ip}}"
+  - name: "Step 4: Perform Network Scan & Enrichment (Bifrost)"
+    action: "bifrost_scan"
+    params: {}
 
-  - name: "Notify SOC via Telegram"
-    action: "telegram_notify"
-    params:
-      message: "SOAR Automated Response: Brute-force neutralized. IP blocked and forensic triage completed."
+  - name: "Step 5: Run Active Directory Security Audit (Yggdrasil)"
+    action: "yggdrasil_audit"
+    params: {}
