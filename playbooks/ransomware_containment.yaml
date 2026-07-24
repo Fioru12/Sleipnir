@@ -1,0 +1,30 @@
+name: "Ransomware Containment Playbook"
+description: "Automated ransomware containment: isolate host, scan IOCs, update threat intel, and audit AD for lateral movement paths."
+
+trigger: "RANSOMWARE_DETECTED"
+
+steps:
+  - name: "Step 1: Update Threat Intel (Fenrir)"
+    action: "fenrir_update"
+    params: {}
+
+  - name: "Step 2: Run HIDS Scan for Ransomware Indicators (Heimdall)"
+    action: "heimdall_simulate"
+    params: {}
+
+  - name: "Step 3: Live Forensic Triage (Mjolnir)"
+    action: "mjolnir_run_triage"
+    params: {}
+
+  - name: "Step 4: Network Scan for C2 Exfiltration (Bifrost)"
+    action: "bifrost_scan"
+    params: {}
+
+  - name: "Step 5: Audit AD for Lateral Movement Paths (Yggdrasil)"
+    action: "yggdrasil_audit"
+    params: {}
+
+  - name: "Step 6: Wait for Analysis"
+    action: "wait"
+    params:
+      seconds: 2

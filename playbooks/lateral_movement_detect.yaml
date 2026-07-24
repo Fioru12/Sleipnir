@@ -1,0 +1,25 @@
+name: "Lateral Movement Detection Playbook"
+description: "Detect and respond to lateral movement: gather threat intel, scan network, triage host processes, and audit AD stale accounts."
+
+trigger: "LATERAL_MOVEMENT_SUSPECTED"
+
+steps:
+  - name: "Step 1: Fetch Latest Threat Intelligence (Fenrir)"
+    action: "fenrir_update"
+    params: {}
+
+  - name: "Step 2: Scan Network for Unusual Connections (Bifrost)"
+    action: "bifrost_scan"
+    params: {}
+
+  - name: "Step 3: Triage Host for Suspicious Processes (Mjolnir)"
+    action: "mjolnir_run_triage"
+    params: {}
+
+  - name: "Step 4: Audit AD Stale and Privileged Accounts (Yggdrasil)"
+    action: "yggdrasil_audit"
+    params: {}
+
+  - name: "Step 5: Verify Host Integrity (Heimdall)"
+    action: "heimdall_simulate"
+    params: {}
