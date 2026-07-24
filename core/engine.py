@@ -13,9 +13,12 @@ class SOAREngine:
     actual Asgard suite modules via subprocess orchestration.
     """
 
-    def __init__(self, playbook_path: str, asgard_root: str = "C:\\Progetti\\Asgard"):
+    def __init__(self, playbook_path: str, asgard_root: str = None):
         self.playbook_path = playbook_path
-        self.asgard_root = asgard_root
+        if asgard_root is None:
+            self.asgard_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        else:
+            self.asgard_root = asgard_root
         self.playbook = self._load_playbook()
 
     def _load_playbook(self) -> Dict[str, Any]:
