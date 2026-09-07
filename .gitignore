@@ -4,3 +4,6 @@
 reports/
 .venv/
 *.egg-info/
+
+incidents/
+output/
