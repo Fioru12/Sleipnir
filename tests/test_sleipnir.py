@@ -431,3 +431,49 @@ def test_bifrost_scan_invalid_ip_fails_step_without_subprocess(mock_run):
         mock_run.assert_not_called()
     finally:
         os.remove(tmp_path)
+
+
+from core.engine import _evaluate_condition
+
+def test_evaluate_condition_logic():
+    event = {"severity": "HIGH", "score": 85, "rule_title": "SSH Brute-Force"}
+    assert _evaluate_condition("{{event.severity}} == 'HIGH'", event) is True
+    assert _evaluate_condition("{{event.severity}} == 'LOW'", event) is False
+    assert _evaluate_condition("{{event.score}} >= 50", event) is True
+    assert _evaluate_condition("{{event.score}} < 50", event) is False
+    assert _evaluate_condition(None, event) is True
+    assert _evaluate_condition("", event) is True
+
+
+def test_playbook_step_condition_skipped():
+    playbook_data = {
+        "name": "Conditional Step Test",
+        "steps": [
+            {
+                "name": "High Severity Only Step",
+                "action": "wait",
+                "condition": "{{event.severity}} == 'HIGH'",
+                "params": {"seconds": 0}
+            },
+            {
+                "name": "Low Severity Only Step",
+                "action": "wait",
+                "condition": "{{event.severity}} == 'LOW'",
+                "params": {"seconds": 0}
+            }
+        ]
+    }
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False, encoding="utf-8") as f:
+        yaml.dump(playbook_data, f)
+        tmp_path = f.name
+    try:
+        engine = SOAREngine(tmp_path, asgard_root="C:\\fake")
+        summary = engine.execute({"rule_title": "Test", "severity": "HIGH"})
+        assert summary["final_state"] == IncidentState.CONTAINED
+        # Verify action log contains one SUCCESS (Step 1) and one SKIPPED (Step 2)
+        actions = summary["audit_trail"]
+        actions_str = str(actions)
+        assert "SKIPPED" in actions_str
+    finally:
+        os.remove(tmp_path)
+

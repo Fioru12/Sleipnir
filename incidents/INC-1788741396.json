@@ -1,0 +1,28 @@
+{
+  "incident_id": "INC-1788741396",
+  "final_state": "FAILED",
+  "audit_trail": [
+    {
+      "timestamp": "2026-09-07 02:36:36",
+      "state": "RUNNING",
+      "message": "Executing playbook: Bifrost Invalid IP Test"
+    },
+    {
+      "timestamp": "2026-09-07 02:36:36",
+      "action": "bifrost_scan",
+      "status": "FAILED",
+      "details": "Invalid IP address for action parameter: '127.0.0.1; rm -rf /'"
+    },
+    {
+      "timestamp": "2026-09-07 02:36:36",
+      "state": "FAILED",
+      "message": "Playbook failed at step: Scan"
+    }
+  ],
+  "context": {
+    "event": {
+      "rule_title": "Test",
+      "source_ip": "127.0.0.1; rm -rf /"
+    }
+  }
+}

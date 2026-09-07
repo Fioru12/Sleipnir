@@ -1,0 +1,54 @@
+{
+  "incident_id": "INC-1788741022",
+  "final_state": "CONTAINED",
+  "audit_trail": [
+    {
+      "timestamp": "2026-09-07 02:30:22",
+      "state": "RUNNING",
+      "message": "Executing playbook: Asgard Suite Automated SOC Playbook"
+    },
+    {
+      "timestamp": "2026-09-07 02:30:25",
+      "action": "fenrir_update",
+      "status": "SUCCESS",
+      "details": "\u001b[95m=================================================================\u001b[0m\n\u001b[1m Fenrir - Threat Intelligence Aggregator & CTI Engine\u001b[0m\n\u001b[95m=================================================================\u001b[0m\n\u001b[96m[*]\u001b[0m Fetching and normalizing threat feeds (CISA KEV)...\n\u001b[93m[SKIP]\u001b[0m OTX_API_KEY non impostata, salto il feed OTX.\n\u001b[96m[*]\u001b[0m Fetched 1695 indicators from feeds.\n\u001b[92m[SUCCESS]\u001b[0m Added 1695 new unique IOCs to database.\n    Total IOCs indexed: 1695\n\u001b[95m=================================================================\u001b[0m\n"
+    },
+    {
+      "timestamp": "2026-09-07 02:30:27",
+      "action": "heimdall_simulate",
+      "status": "SUCCESS",
+      "details": "\u001b[94m============================================================\u001b[0m\n\u001b[1m Heimdall Local Demonstration & Live Test\u001b[0m\n\u001b[94m============================================================\u001b[0m\n\u001b[93m[TELEGRAM]\u001b[0m Notifications disabled (configure config.yaml)\n\n\u001b[1m[Ingest 1]\u001b[0m Processing log: Jul 23 14:00:10 server01 sshd[1234]: Failed password for invalid user root from 203.0.113.50 port 51234 ssh2\n   Parsed Event -> Type: ssh_auth, IP: 203.0.113.50, User: root\n   [Info] Event evaluated (threshold not reached yet).\n\n\u001b[1m[Ingest 2]\u001b[0m Processing log: Jul 23 14:00:12 server01 sshd[1234]: Failed password for invalid user root from 203.0.113.50 port 51234 ssh2\n   Parsed Event -> Type: ssh_auth, IP: 203.0.113.50, User: root\n   [Info] Event evaluated (threshold not reached yet).\n\n\u001b[1m[Ingest 3]\u001b[0m Processing log: Jul 23 14:00:15 server01 sshd[1234]: Failed password for invalid user root from 203.0.113.50 port 51234 ssh2\n   Parsed Event -> Type: ssh_auth, IP: 203.0.113.50, User: root\n   \u001b[92m[ALERT] TRIGGERED:\u001b[0m SSH Brute-Force Attack Detected (HIGH)\n\n[ACTIVE RESPONSE] Triggered block for malicious IP: 203.0.113.50 | Reason: SSH Brute-Force Attack Detected\n[DRY-RUN] Would execute firewall block command for 203.0.113.50\n\n\u001b[1m[Ingest 4]\u001b[0m Processing log: [2026-07-23 14:05:01] Security-Auditing: EventID 4625 - An account failed to log on. Account: Administrator, Source IP: 198.51.100.22\n   Parsed Event -> Type: windows_security, IP: 198.51.100.22, User: Administrator\n   [Info] Event evaluated (threshold not reached yet).\n\n\u001b[1m[Ingest 5]\u001b[0m Processing log: [2026-07-23 14:05:03] Security-Auditing: EventID 4625 - An account failed to log on. Account: Administrator, Source IP: 198.51.100.22\n   Parsed Event -> Type: windows_security, IP: 198.51.100.22, User: Administrator\n   [Info] Event evaluated (threshold not reached yet).\n\n\u001b[1m[Ingest 6]\u001b[0m Processing log: [2026-07-23 14:05:06] Security-Auditing: EventID 4625 - An account failed to log on. Account: Administrator, Source IP: 198.51.100.22\n   Parsed Event -> Type: windows_security, IP: 198.51.100.22, User: Administrator\n   \u001b[92m[ALERT] TRIGGERED:\u001b[0m Windows Multiple Failed Logins (Event 4625) (HIGH)\n\n[ACTIVE RESPONSE] Triggered block for malicious IP: 198.51.100.22 | Reason: Windows Multiple Failed Logins (Event 4625)\n[DRY-RUN] Would execute firewall block command for 198.51.100.22\n\n\u001b[94m============================================================\u001b[0m\n Demonstration Complete! Database Statistics:\n - Total Alerts Recorded: 306\n - Severity Breakdown: {'HIGH': 306}\n - Total Blocked IPs: 2\n\u001b[94m============================================================\u001b[0m\n"
+    },
+    {
+      "timestamp": "2026-09-07 02:30:30",
+      "action": "mjolnir_run_triage",
+      "status": "SUCCESS",
+      "details": "\u001b[91m=================================================================\u001b[0m\n\u001b[1m Mjolnir - Automated Incident Response & Triage Engine\u001b[0m\n\u001b[91m=================================================================\u001b[0m\n\u001b[96m[*]\u001b[0m Collecting live host telemetry (processes, network sockets, OS info)...\n\u001b[93m[!]\u001b[0m SIMULATION MODE: Injecting mock IOC process and malicious network connection for testing...\n\u001b[96m[*]\u001b[0m Scanning telemetry against Threat Intelligence IOCs...\n\u001b[96m[*]\u001b[0m Scan complete. Found \u001b[1m2\u001b[0m indicator(s) of compromise.\n\u001b[96m[*]\u001b[0m Generating Executive Incident Response Report...\n\u001b[92m[SUCCESS]\u001b[0m IR Report saved at: output\\Incident_Report_Fisso-del-fioru_2026-09-07_02-30-28.md\n\n\u001b[91m=================================================================\u001b[0m\n\u001b[1m SUMMARY OF FINDINGS:\u001b[0m\n - \u001b[93m[HIGH]\u001b[0m SUSPICIOUS_PROCESS: mimikatz.exe\n - \u001b[91m[CRITICAL]\u001b[0m MALICIOUS_IP_CONNECTION: 203.0.113.50:443\n\u001b[91m=================================================================\u001b[0m\n"
+    },
+    {
+      "timestamp": "2026-09-07 02:30:33",
+      "action": "bifrost_scan",
+      "status": "SUCCESS",
+      "details": "\u001b[96m=================================================================\u001b[0m\n\u001b[1m Bifrost - Network Port Scanner\u001b[0m\n\u001b[96m=================================================================\u001b[0m\n\u001b[93m[AVVISO LEGALE]\u001b[0m L'operatore certifica di essere proprietario o formalmente\n\u001b[93m[AVVISO LEGALE]\u001b[0m autorizzato a scansionare il target (art. 615-ter c.p.).\n\u001b[96m[*]\u001b[0m Target: 127.0.0.1\n\u001b[96m[*]\u001b[0m Ports scanned: 25\n\u001b[92m[*]\u001b[0m Open ports: \u001b[1m2\u001b[0m\n\u001b[96m[*]\u001b[0m Scan duration: 1.01s\n\n \u001b[92mOpen Ports:\u001b[0m\n PORT     SERVICE         LATENCY    BANNER\n ------   ------------    --------   ------------------------------\n 135      \u001b[1mMSRPC          \u001b[0m 0.0       ms -\n 445      \u001b[1mSMB            \u001b[0m 0.0       ms -\n\n\u001b[96m[*]\u001b[0m Enriching target with IP intelligence...\n\u001b[96m=================================================================\u001b[0m\n"
+    },
+    {
+      "timestamp": "2026-09-07 02:30:34",
+      "action": "yggdrasil_audit",
+      "status": "SUCCESS",
+      "details": "\u001b[96m=================================================================\u001b[0m\n\u001b[1m Yggdrasil - Active Directory & Windows Security Auditor\u001b[0m\n\u001b[96m=================================================================\u001b[0m\n\u001b[96m[*]\u001b[0m Target Domain: corp.asgard.local\n\u001b[93m[!]\u001b[0m SIMULATION MODE: Using mock AD domain configuration...\n\u001b[96m[*]\u001b[0m Analyzing security posture and GPO policies...\n\u001b[96m[*]\u001b[0m Audit complete. Security Score: \u001b[1m0/100\u001b[0m\n    - High Severity Findings: 4\n    - Medium Severity Findings: 2\n\u001b[96m[*]\u001b[0m Generating Executive Audit Report...\n\u001b[92m[SUCCESS]\u001b[0m Report saved at: reports\\yggdrasil_audit_corp.asgard.local_2026-09-07_02-30-34.md\n\n\u001b[96m=================================================================\u001b[0m\n\u001b[1m SUMMARY OF FINDINGS:\u001b[0m\n - \u001b[91m[HIGH]\u001b[0m Minimum Password Length Too Short\n - \u001b[91m[HIGH]\u001b[0m Password Complexity Disabled\n - \u001b[93m[MEDIUM]\u001b[0m Insecure Account Lockout Threshold\n - \u001b[91m[HIGH]\u001b[0m Domain Admin Password Never Expires: Administrator\n - \u001b[91m[HIGH]\u001b[0m Domain Admin Password Never Expires: BackupAdmin\n - \u001b[93m[MEDIUM]\u001b[0m Stale Privileged Account: BackupAdmin\n\u001b[96m=================================================================\u001b[0m\n"
+    },
+    {
+      "timestamp": "2026-09-07 02:30:34",
+      "state": "CONTAINED",
+      "message": "All playbook steps executed successfully. Threat contained."
+    }
+  ],
+  "context": {
+    "event": {
+      "rule_title": "SSH Brute-Force Attack Detected",
+      "severity": "HIGH",
+      "source_ip": "203.0.113.50",
+      "hostname": "server01-production"
+    }
+  }
+}

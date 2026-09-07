@@ -110,6 +110,60 @@ def _validate_ip(value: Any) -> str:
         raise ValueError(f"Invalid IP address for action parameter: {value!r}")
     return str(value)
 
+
+def _evaluate_condition(condition: Any, event: Dict[str, Any]) -> bool:
+    """
+    Evaluates a simple condition string like "{{event.severity}} == 'HIGH'" or "{{event.confidence}} >= 50".
+    If condition is empty/None, returns True.
+    """
+    if condition is None or condition == "":
+        return True
+    if not isinstance(condition, str):
+        return bool(condition)
+
+    cond = condition.strip()
+    if not cond:
+        return True
+
+    def replace_var(match):
+        field = match.group(1)
+        val = event.get(field, None)
+        if val is None:
+            return "None"
+        if isinstance(val, str):
+            return repr(val)
+        return str(val)
+
+    resolved_cond = re.sub(r"\{\{\s*event\.([A-Za-z0-9_]+)\s*\}\}", replace_var, cond)
+
+    try:
+        import ast
+        node = ast.parse(resolved_cond, mode='eval')
+
+        def _check_node(n):
+            if isinstance(n, ast.Expression):
+                return _check_node(n.body)
+            elif isinstance(n, ast.Compare):
+                return _check_node(n.left) and all(_check_node(c) for c in n.comparators)
+            elif isinstance(n, ast.Constant):
+                return True
+            elif isinstance(n, ast.UnaryOp):
+                return _check_node(n.operand)
+            elif isinstance(n, ast.Name):
+                return n.id in ("True", "False", "None")
+            elif isinstance(n, ast.BinOp):
+                return _check_node(n.left) and _check_node(n.right)
+            return False
+
+        if not _check_node(node):
+            return False
+
+        code = compile(node, "<condition>", "eval")
+        return bool(eval(code, {"__builtins__": {}}, {"True": True, "False": False, "None": None}))
+    except Exception:
+        return False
+
+
 class SOAREngine:
     """
     Real-world SOAR engine that parses YAML playbooks and executes
@@ -157,6 +211,15 @@ class SOAREngine:
 
                 step_name = step.get("name", f"Step {i}")
                 action = step.get("action")
+                condition = step.get("condition")
+
+                if condition is not None:
+                    if not _evaluate_condition(condition, trigger_event):
+                        print(f"  {Colors.YELLOW}[Step {i}]{Colors.ENDC} {step_name} ({action}) - {Colors.YELLOW}[SKIPPED]{Colors.ENDC} Condition evaluated to False: {condition}")
+                        bus.log_action(action or "unknown", "SKIPPED", f"Condition evaluated to False: {condition}")
+                        bus.save_to_file(incident_path)
+                        continue
+
                 raw_params = step.get("params", {}) or {}
                 if not isinstance(raw_params, dict):
                     raise TypeError(
