@@ -5,7 +5,7 @@ import re
 import sys
 import subprocess
 import ipaddress
-from typing import Dict, Any, List
+from typing import Dict, Any
 from core.bus import EventBus, IncidentState
 from core.colors import Colors
 from core.gjallarhorn_client import notify as gjallarhorn_notify
