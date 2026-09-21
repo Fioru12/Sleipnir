@@ -1,5 +1,5 @@
 name: "Ransomware Containment Playbook"
-description: "Automated ransomware containment: isolate host, scan IOCs, update threat intel, and audit AD for lateral movement paths."
+description: "Automated ransomware response: update threat intel, triage host for IOCs, scan network for C2, and audit AD for lateral movement paths. (Host isolation remains manual — see OPERATIONAL_RUNBOOK.)"
 
 trigger: "RANSOMWARE_DETECTED"
 
