@@ -5,10 +5,15 @@ import re
 import sys
 import subprocess
 import ipaddress
-from typing import Dict, Any
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any, Dict, List
 from core.bus import EventBus, IncidentState
 from core.colors import Colors
 from core.gjallarhorn_client import notify as gjallarhorn_notify
+
+_DEFAULT_STEP_TIMEOUT = 15
+_DEFAULT_RETRY_DELAY = 1
+_MAX_PARALLEL_WORKERS = 4
 
 _PLACEHOLDER_RE = re.compile(r"^\{\{\s*event\.([A-Za-z0-9_]+)\s*\}\}$")
 
@@ -220,6 +225,27 @@ class SOAREngine:
                         bus.save_to_file(incident_path)
                         continue
 
+                # Gruppo parallelo: esegue i sotto-step in thread concorrenti.
+                # Fallisce se almeno un sotto-step fallisce (a meno di
+                # continue_on_failure: true sullo step gruppo).
+                if isinstance(step.get("parallel"), list):
+                    print(f"  {Colors.CYAN}[Step {i}]{Colors.ENDC} {step_name} (parallel x{len(step['parallel'])})...")
+                    ok, details = self._run_parallel_group(step, trigger_event)
+                    cont = step.get("continue_on_failure", False) is True
+                    if ok:
+                        print(f"    {Colors.GREEN}[SUCCESS]{Colors.ENDC} Parallel group completed.")
+                        bus.log_action(step_name, "SUCCESS", details)
+                    else:
+                        print(f"    {Colors.RED}[FAILED]{Colors.ENDC} Parallel group failed: {details}")
+                        bus.log_action(step_name, "FAILED", details)
+                        if not cont:
+                            bus.transition(IncidentState.FAILED, f"Playbook failed at step: {step_name}")
+                            bus.save_to_file(incident_path)
+                            notify_gjallarhorn_outcome(bus, name)
+                            return bus.get_summary()
+                    bus.save_to_file(incident_path)
+                    continue
+
                 raw_params = step.get("params", {}) or {}
                 if not isinstance(raw_params, dict):
                     raise TypeError(
@@ -229,7 +255,7 @@ class SOAREngine:
 
                 print(f"  {Colors.CYAN}[Step {i}]{Colors.ENDC} {step_name} ({action})...")
 
-                success, details = self._dispatch_real_action(action, params, bus)
+                success, details = self._run_step_with_retry(step, params, bus)
 
                 if success:
                     print(f"    {Colors.GREEN}[SUCCESS]{Colors.ENDC} Action executed successfully.")
@@ -237,6 +263,10 @@ class SOAREngine:
                 else:
                     print(f"    {Colors.RED}[FAILED]{Colors.ENDC} Action failed: {details}")
                     bus.log_action(action, "FAILED", details)
+                    if step.get("continue_on_failure", False) is True:
+                        print(f"    {Colors.YELLOW}[CONTINUE]{Colors.ENDC} continue_on_failure=true, proseguo.")
+                        bus.save_to_file(incident_path)
+                        continue
                     bus.transition(IncidentState.FAILED, f"Playbook failed at step: {step_name}")
                     bus.save_to_file(incident_path)
                     notify_gjallarhorn_outcome(bus, name)
@@ -271,16 +301,94 @@ class SOAREngine:
         bus.save_to_file(path)
         return bus.get_summary()
 
-    def _dispatch_real_action(self, action: str, params: Dict[str, Any], bus: EventBus) -> tuple:
+    def _run_step_with_retry(self, step: Dict[str, Any], params: Dict[str, Any], bus: EventBus) -> tuple:
+        """Esegue un singolo step con retry/backoff e timeout per-step.
+
+        Chiavi playbook (tutte opzionali, default = comportamento storico):
+          retries: int >= 0 (default 0 = un solo tentativo)
+          retry_delay: secondi base fra tentativi (default 1, backoff lineare)
+          timeout: secondi per subprocess (default 15)
+        Non ritenta mai errori di validazione input (es. IP non valido):
+        quelli falliscono subito.
+        """
+        try:
+            retries = int(step.get("retries", 0) or 0)
+        except (TypeError, ValueError):
+            retries = 0
+        retries = max(0, retries)
+        try:
+            retry_delay = float(step.get("retry_delay", _DEFAULT_RETRY_DELAY))
+        except (TypeError, ValueError):
+            retry_delay = float(_DEFAULT_RETRY_DELAY)
+        retry_delay = max(0.0, retry_delay)
+        try:
+            timeout = float(step.get("timeout", _DEFAULT_STEP_TIMEOUT))
+        except (TypeError, ValueError):
+            timeout = float(_DEFAULT_STEP_TIMEOUT)
+        timeout = max(1.0, timeout)
+
+        action = step.get("action")
+        last_details = ""
+        for attempt in range(retries + 1):
+            success, details = self._dispatch_real_action(action, params, bus, timeout=timeout)
+            if success:
+                if attempt > 0:
+                    details = f"{details} (riuscito al tentativo {attempt + 1}/{retries + 1})"
+                return True, details
+            last_details = details
+            # Errori di validazione: non ha senso ritentare.
+            if isinstance(details, str) and details.startswith("Invalid IP address"):
+                return False, details
+            if attempt < retries:
+                time.sleep(retry_delay * (attempt + 1))
+        if retries > 0:
+            last_details = f"{last_details} (fallito dopo {retries + 1} tentativi)"
+        return False, last_details
+
+    def _run_parallel_group(self, step: Dict[str, Any], trigger_event: Dict[str, Any]) -> tuple:
+        """Esegue step.parallel (lista di {name,action,params,timeout}) in thread."""
+        subs = step.get("parallel") or []
+        try:
+            default_timeout = float(step.get("timeout", _DEFAULT_STEP_TIMEOUT))
+        except (TypeError, ValueError):
+            default_timeout = float(_DEFAULT_STEP_TIMEOUT)
+
+        def _one(sub: Any) -> tuple:
+            if not isinstance(sub, dict):
+                return False, f"Sotto-step non valido: {sub!r}"
+            raw = sub.get("params", {}) or {}
+            if not isinstance(raw, dict):
+                return False, f"Params non validi per '{sub.get('name', '?')}'"
+            params = _resolve_params(raw, trigger_event)
+            mini = {"action": sub.get("action"), "retries": 0, "timeout": sub.get("timeout", default_timeout)}
+            bus = EventBus("parallel-probe", trigger_event)
+            eng_success, details = self._dispatch_real_action(mini["action"], params, bus, timeout=float(mini["timeout"]))
+            label = sub.get("name", mini["action"])
+            return eng_success, f"{label}: {details}"
+
+        results: List[str] = []
+        failures: List[str] = []
+        with ThreadPoolExecutor(max_workers=min(_MAX_PARALLEL_WORKERS, max(1, len(subs)))) as pool:
+            future_to_name = {pool.submit(_one, s): (s.get("name", s.get("action")) if isinstance(s, dict) else "?") for s in subs}
+            for fut in as_completed(future_to_name):
+                ok, detail = fut.result()
+                results.append(detail)
+                if not ok:
+                    failures.append(detail)
+        if failures:
+            return False, "; ".join(failures)
+        return True, "; ".join(results)
+
+    def _dispatch_real_action(self, action: str, params: Dict[str, Any], bus: EventBus, timeout: float = _DEFAULT_STEP_TIMEOUT) -> tuple:
         try:
             if action == "heimdall_simulate":
                 path = os.path.join(self.asgard_root, "Heimdall")
-                res = subprocess.run([sys.executable, "run_local_demo.py"], cwd=path, capture_output=True, text=True, encoding="utf-8", timeout=15)
+                res = subprocess.run([sys.executable, "run_local_demo.py"], cwd=path, capture_output=True, text=True, encoding="utf-8", timeout=timeout)
                 return res.returncode == 0, res.stdout or res.stderr
 
             elif action == "mjolnir_run_triage":
                 path = os.path.join(self.asgard_root, "Mjolnir")
-                res = subprocess.run([sys.executable, "main.py", "triage", "--simulate"], cwd=path, capture_output=True, text=True, encoding="utf-8", timeout=15)
+                res = subprocess.run([sys.executable, "main.py", "triage", "--simulate"], cwd=path, capture_output=True, text=True, encoding="utf-8", timeout=timeout)
                 return res.returncode == 0, res.stdout or res.stderr
 
             elif action == "bifrost_scan":
@@ -290,17 +398,17 @@ class SOAREngine:
                     target_ip = _validate_ip(target_ip)
                 except ValueError as e:
                     return False, str(e)
-                res = subprocess.run([sys.executable, "main.py", "scan", target_ip, "--enrich"], cwd=path, capture_output=True, text=True, encoding="utf-8", timeout=15)
+                res = subprocess.run([sys.executable, "main.py", "scan", target_ip, "--enrich"], cwd=path, capture_output=True, text=True, encoding="utf-8", timeout=timeout)
                 return res.returncode == 0, res.stdout or res.stderr
 
             elif action == "yggdrasil_audit":
                 path = os.path.join(self.asgard_root, "Yggdrasil")
-                res = subprocess.run([sys.executable, "main.py", "audit"], cwd=path, capture_output=True, text=True, encoding="utf-8", timeout=15)
+                res = subprocess.run([sys.executable, "main.py", "audit"], cwd=path, capture_output=True, text=True, encoding="utf-8", timeout=timeout)
                 return res.returncode == 0, res.stdout or res.stderr
 
             elif action == "fenrir_update":
                 path = os.path.join(self.asgard_root, "Fenrir")
-                res = subprocess.run([sys.executable, "main.py", "update"], cwd=path, capture_output=True, text=True, encoding="utf-8", timeout=15)
+                res = subprocess.run([sys.executable, "main.py", "update"], cwd=path, capture_output=True, text=True, encoding="utf-8", timeout=timeout)
                 return res.returncode == 0, res.stdout or res.stderr
 
             elif action == "wait":
