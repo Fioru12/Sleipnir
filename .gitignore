@@ -4,6 +4,9 @@
 reports/
 .venv/
 *.egg-info/
+.coverage
+.coverage.*
+htmlcov/
 
 incidents/
 output/
